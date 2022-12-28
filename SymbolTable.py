@@ -7,7 +7,6 @@ Unported [License](https://creativecommons.org/licenses/by-nc-sa/3.0/).
 """
 import typing
 
-
 TYPE = 0
 KIND = 1
 INDEX = 2
@@ -24,13 +23,18 @@ class SymbolTable:
         self._class_scope = {}
         self._subroutine_scope = {}
         self._counter = {"STATIC": 0, "FIELD": 0, "ARG": 0, "VAR": 0}
+        self._in_class_scope = True
+
 
     def start_subroutine(self) -> None:
         """Starts a new subroutine scope (i.e., resets the subroutine's 
         symbol table).
         """
         # Your code goes here!
-
+        self._subroutine_scope = {}
+        self._counter["ARG"] = 0
+        self._counter["VAR"] = 0
+        self._in_class_scope = False
 
     def define(self, name: str, type: str, kind: str) -> None:
         """Defines a new identifier of a given name, type and kind and assigns 
@@ -61,7 +65,7 @@ class SymbolTable:
             the current scope.
         """
         # Your code goes here!
-        pass
+        return self._counter[kind]
 
     def kind_of(self, name: str) -> str:
         """
@@ -73,6 +77,8 @@ class SymbolTable:
             if the identifier is unknown in the current scope.
         """
 
+        return self.helper(name, KIND)
+
 
     def type_of(self, name: str) -> str:
         """
@@ -83,7 +89,7 @@ class SymbolTable:
             str: the type of the named identifier in the current scope.
         """
         # Your code goes here!
-        pass
+        return self.helper(name, TYPE)
 
     def index_of(self, name: str) -> int:
         """
@@ -93,6 +99,18 @@ class SymbolTable:
         Returns:
             int: the index assigned to the named identifier.
         """
-        # Your code goes here!
-        pass
+
+        return self.helper(name, INDEX)
+
+    def helper(self, name, request):
+        out = None
+
+        if name in self._class_scope:
+            out = self._class_scope[name][request]
+
+        if not self._in_class_scope:
+            if name in self._subroutine_scope:
+                out = self._subroutine_scope[name][request]
+
+        return out
 
