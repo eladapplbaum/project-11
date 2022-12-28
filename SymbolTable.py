@@ -8,6 +8,10 @@ Unported [License](https://creativecommons.org/licenses/by-nc-sa/3.0/).
 import typing
 
 
+TYPE = 0
+KIND = 1
+INDEX = 2
+
 class SymbolTable:
     """A symbol table that associates names with information needed for Jack
     compilation: type, kind and running index. The symbol table has two nested
@@ -17,16 +21,15 @@ class SymbolTable:
     def __init__(self) -> None:
         """Creates a new empty symbol table."""
         # Your code goes here!
-        pass
+        self._class_scope = {}
+        self._subroutine_scope = {}
+        self._counter = {"STATIC": 0, "FIELD": 0, "ARG": 0, "VAR": 0}
 
     def start_subroutine(self) -> None:
         """Starts a new subroutine scope (i.e., resets the subroutine's 
         symbol table).
         """
         # Your code goes here!
-        self._class_scope = {}
-        self._subroutine_scope = {}
-        self._counter = {"STATIC":0, "FIELD":0, "ARG":0, "VAR":0}
 
 
     def define(self, name: str, type: str, kind: str) -> None:
@@ -42,12 +45,11 @@ class SymbolTable:
         """
         # Your code goes here!
         if kind in ["STATIC", "FIELD"]:
-            self._class_scope[name] = [type , kind, self._counter[kind]]
+            self._class_scope[name] = [type, kind, self._counter[kind]]
             self._counter[kind] += 1
         elif kind in ["ARG", "VAR"]:
             self._subroutine_scope[name] = [type, kind, self._counter[kind]]
             self._counter[kind] += 1
-
 
     def var_count(self, kind: str) -> int:
         """
@@ -70,8 +72,7 @@ class SymbolTable:
             str: the kind of the named identifier in the current scope, or None
             if the identifier is unknown in the current scope.
         """
-        # Your code goes here!
-        pass
+
 
     def type_of(self, name: str) -> str:
         """
@@ -94,3 +95,4 @@ class SymbolTable:
         """
         # Your code goes here!
         pass
+
