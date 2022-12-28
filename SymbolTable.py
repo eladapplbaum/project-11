@@ -24,7 +24,10 @@ class SymbolTable:
         symbol table).
         """
         # Your code goes here!
-        pass
+        self._class_scope = {}
+        self._subroutine_scope = {}
+        self._counter = {"STATIC":0, "FIELD":0, "ARG":0, "VAR":0}
+
 
     def define(self, name: str, type: str, kind: str) -> None:
         """Defines a new identifier of a given name, type and kind and assigns 
@@ -38,7 +41,13 @@ class SymbolTable:
             "STATIC", "FIELD", "ARG", "VAR".
         """
         # Your code goes here!
-        pass
+        if kind in ["STATIC", "FIELD"]:
+            self._class_scope[name] = [type , kind, self._counter[kind]]
+            self._counter[kind] += 1
+        elif kind in ["ARG", "VAR"]:
+            self._subroutine_scope[name] = [type, kind, self._counter[kind]]
+            self._counter[kind] += 1
+
 
     def var_count(self, kind: str) -> int:
         """
