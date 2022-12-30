@@ -14,6 +14,7 @@ from SymbolTable import SymbolTable
 from VMWriter import VMWriter
 
 
+
 def compile_file(
         input_file: typing.TextIO, output_file: typing.TextIO) -> None:
     """Compiles a single file.
@@ -25,7 +26,9 @@ def compile_file(
     # Your code goes here!
     # This function should be relatively similar to "analyze_file" in
     # JackAnalyzer.py from the previous project.
-    pass
+    tokenizer = JackTokenizer(input_file)
+    engine = CompilationEngine(tokenizer, output_file)
+    engine.compile_class()
 
 
 if "__main__" == __name__:
