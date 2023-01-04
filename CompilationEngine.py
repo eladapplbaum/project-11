@@ -7,6 +7,7 @@ Unported [License](https://creativecommons.org/licenses/by-nc-sa/3.0/).
 """
 import typing
 from VMWriter import *
+from SymbolTable import *
 
 
 # try
@@ -26,6 +27,7 @@ class CompilationEngine:
         # Your code goes here!
         # Note that you can write to output_stream like so:
         # output_stream.write("Hello world! \n")
+        self._class_name = ""
         self._output_stream = output_stream
         self._input_stream = input_stream
         self.VMWriter = VMWriter(output_stream)
@@ -41,8 +43,8 @@ class CompilationEngine:
 
         self.binary_op_dct_vm = {'+': 'ADD', '-': 'SUB', '*': '*', '/': '/',
                                  '|': 'OR',
-                                 '=': 'EQ', '<': 'LT;', '>': 'GT;',
-                                 '&': '&amp;'}
+                                 '=': 'EQ', '<': 'LT', '>': 'GT',
+                                 '&': 'AND'}
         self.unary_op_vm = {'-': 'NEG', '~': 'NOT', '^': 'SHIFTLEFT',
                             '#': 'SHIFRIGHT'}
 
@@ -51,10 +53,9 @@ class CompilationEngine:
                                      'false': ['CONST', 0],
                                      'null': ['CONST', 0],
                                      'this': ['POINTER', 0]}
-
         self.classVarDec = ['static', 'field']
         self.subroutineDec = ['constructor', 'method', 'function']
-
+        self.symbol_table = SymbolTable()
         self.if_while_labels_count = 0
 
     def compile_class(self) -> None:
@@ -62,6 +63,7 @@ class CompilationEngine:
         # Your code goes here!
         self._output_stream.write("<class>\n")
         self.write_token()  # class
+        self._class_name = self._input_stream.cur_token()
         self.write_token()  # class_name
         self.write_token()  # {
         while self._input_stream.cur_token() in self.classVarDec \
@@ -77,13 +79,20 @@ class CompilationEngine:
         """Compiles a static declaration or a field declaration."""
         # Your code goes here!
         self._output_stream.write("<classVarDec>\n")
+        kind = self._input_stream.cur_token()
         self.write_token()  # static or field
+        type = self._input_stream.cur_token()
         self.write_token()  # var type
+        names = []
+        names.append(self._input_stream.cur_token())
         self.write_token()  # var name
         while self._input_stream.cur_token() == ",":
             self.write_token()  # ","
+            names.append(self._input_stream.cur_token())
             self.write_token()  # var name
         self.write_token()  # ;
+        for name in names:
+            self.symbol_table.define(name, type, kind)
         self._output_stream.write("</classVarDec>\n")
 
     def compile_subroutine(self) -> None:
@@ -94,22 +103,40 @@ class CompilationEngine:
         """
         # Your code goes here!
         # Your code goes here!
+        self.symbol_table.start_subroutine()
         self._output_stream.write("<subroutineDec>\n")
+        func_type = self._input_stream.cur_token()
+        if (func_type == "method"):
+            self.symbol_table.define('this', self._class_name, 'ARG')
         self.write_token()  # get field \ method \ contracture
         self.write_token()  # get subroutine return type \ 'constructor'
+        sub_name = self._input_stream.cur_token()
         self.write_token()  # get subroutine name \ 'new'
         self.write_token()  # get '(' symbol
         self.compile_parameter_list()
         self.write_token()  # get ')' symbol
-        self.compile_subroutine_body()
+        self.compile_subroutine_body(func_type, sub_name)
         # self.write_token() #'}'
         self._output_stream.write("</subroutineDec>\n")
 
-    def compile_subroutine_body(self):
+    def compile_subroutine_body(self, func_type, name):
         self._output_stream.write("<subroutineBody>\n")
         self.write_token()  # '{'
         while self._input_stream.cur_token() == 'var':
             self.compile_var_dec()
+        vars = self.symbol_table.var_count('VAR')
+        self.VMWriter.write_function(name, vars)
+        if func_type == 'method':
+            # Save self at pointer
+            self.VMWriter.write_push('ARG', 0)
+            self.VMWriter.write_pop('POINTER', 0)
+        if func_type == 'contracture':
+            # Memory allocates for all fields
+            fields = self.symbol_table.var_count('FIELD')
+            self.VMWriter.write_push('CONST', fields)
+            self.VMWriter.write_call('Memory.alloc', 1)
+            # Save allocated memory at pointer
+            self.VMWriter.write_pop('POINTER', 0)
         self.compile_statements()
         self.write_token()  # '}'
         self._output_stream.write("</subroutineBody>\n")
@@ -119,8 +146,13 @@ class CompilationEngine:
         enclosing "()".
         """
         # Your code goes here!
+        params = 0
         self._output_stream.write("<parameterList>\n")
         while self._input_stream.cur_token() != ")":
+            params += 1
+            type = self._input_stream.cur_token()
+            name = self._input_stream.cur_token()
+            self.symbol_table.define(name, type, 'ARG')
             self.write_token()
         self._output_stream.write("</parameterList>\n")
 
@@ -129,12 +161,19 @@ class CompilationEngine:
         # Your code goes here!
         self._output_stream.write("<varDec>\n")
         self.write_token()  # var
+        type = self._input_stream.cur_token()
         self.write_token()  # type
+        names = []
+        names.append(self._input_stream.cur_token())
         self.write_token()  # var name
         while self._input_stream.cur_token() == ',':
             self.write_token()  # ","
+            names.append(self._input_stream.cur_token())
             self.write_token()  # var name
         self.write_token()  # ';'
+        for name in names:
+            self.symbol_table.define(name, type, 'VAR')
+
         self._output_stream.write("</varDec>\n")
 
     def compile_statements(self) -> None:
@@ -162,7 +201,10 @@ class CompilationEngine:
         # Your code goes here!
         self._output_stream.write("<doStatement>\n")
         self.write_token()  # do
+
         identifier = self._input_stream.cur_token()
+        kind = self.symbol_table.kind_of(identifier)
+
         self.write_token()  # identifier
         while self._input_stream.cur_token() == ".":
             self.write_token()  # '.'
@@ -172,6 +214,7 @@ class CompilationEngine:
         num_args = self.compile_expression_list()
         self.VMWriter.write_call(identifier, num_args)
         self.write_token()  # ')'
+        self.VMWriter.write_pop('TEMP', 0)
         self.write_token()  # ;
 
         self._output_stream.write("</doStatement>\n")
@@ -181,6 +224,9 @@ class CompilationEngine:
         # Your code goes here!
         self._output_stream.write("<letStatement>\n")
         self.write_token()  # let
+        var_name = self._input_stream.cur_token()
+        var_kind = self.symbol_table.kind_of(var_name)
+        var_index = self.symbol_table.index_of(var_name)
         self.write_token()  # varName
         if self._input_stream.cur_token() == "[":
             self.write_token()  # [
@@ -189,6 +235,8 @@ class CompilationEngine:
         self.write_token()  # =
         self.compile_expression()
         self.write_token()  # ;
+        self.VMWriter.write_pop(var_kind, var_index)
+        self.VMWriter.write_push(var_kind, var_index)
         self._output_stream.write("</letStatement>\n")
 
     def compile_while(self) -> None:
@@ -206,7 +254,7 @@ class CompilationEngine:
         self.VMWriter.write_if(f"label {self.if_while_labels_count + 1}")
         self.write_token()  # {
 
-        if_while_labels_count = self.if_while_labels_count # for recursive
+        if_while_labels_count = self.if_while_labels_count  # for recursive
         self.if_while_labels_count += 1
         self.compile_statements()
         self.VMWriter.write_goto(f"label {if_while_labels_count}")
@@ -222,7 +270,10 @@ class CompilationEngine:
         self.write_token()  # return
         while self._input_stream.cur_token() != ';':
             self.compile_expression()
+        else:
+            self.VMWriter.write_push('CONST', 0)
         self.write_token()  # ';'
+        self.VMWriter.write_return()
         self._output_stream.write("</returnStatement>\n")
 
     def compile_if(self) -> None:
@@ -260,7 +311,7 @@ class CompilationEngine:
         # Your code goes here!
         self._output_stream.write("<expression>\n")
         self.compile_term()
-        while self._input_stream.cur_token() in self.binary_op_dct:
+        while self._input_stream.cur_token() in self.binary_op_dct_vm:
             self.compile_term()
             if self._input_stream.cur_token() == '*':
                 self.VMWriter.write_call('Math.multiply', 2)
@@ -268,7 +319,7 @@ class CompilationEngine:
                 self.VMWriter.write_call('Math.divide', 2)
             else:
                 self.VMWriter.write_arithmetic(
-                    self.binary_op_dct[self._input_stream.cur_token()])
+                    self.binary_op_dct_vm[self._input_stream.cur_token()])
             self.write_token()  # op
         self._output_stream.write("</expression>\n")
 
@@ -284,9 +335,17 @@ class CompilationEngine:
         """
         # Your code goes here!
         self._output_stream.write("<term>\n")
-        if self._input_stream.token_type() in ['INT_CONST', 'STRING_CONST']:
+        if self._input_stream.token_type()  == 'INT_CONST':
             self.VMWriter.write_push('CONST', self._input_stream.cur_token())
             self.write_token()  # the number
+
+        if self._input_stream.token_type() == 'STRING_CONST': #fixme: check
+            string = self._input_stream.cur_token()
+            self.VMWriter.write_push('CONST', string)
+            self.VMWriter.write_call('String.new', 1)
+            for char in string:
+                self.VMWriter.write_push('CONST', ord(char))
+                self.VMWriter.write_call('String.appendChar', 2)
 
         elif self._input_stream.cur_token() in self.keyword_constant:
             self.VMWriter.write_push(
@@ -296,7 +355,7 @@ class CompilationEngine:
                 self.VMWriter.write_arithmetic('NEG')
             self.write_token()  # the keywordConstant
 
-        elif self._input_stream.cur_token() in self.unary_op:
+        elif self._input_stream.cur_token() in self.unary_op_vm:
             self.write_token()  # ~ or -
             self.compile_term()
             self.VMWriter.write_arithmetic('NEG')
@@ -305,15 +364,23 @@ class CompilationEngine:
         elif self._input_stream.token_type() == "IDENTIFIER":
             identifier = self._input_stream.token_type()
             self.write_token()  # identifier
-            if self._input_stream.cur_token() == "[": # fixme: incomplited
+            if self._input_stream.cur_token() == "[":  # fixme: check
                 self.write_token()  # [
                 self.compile_expression()
                 self.write_token()  # ]
+                # Compile array indexing
+                kind = self.symbol_table.kind_of(identifier)
+                index = self.symbol_table.index_of(identifier)
+                self.VMWriter.write_push(kind, index)
+                self.VMWriter.write_arithmetic('+')
+                self.VMWriter.write_pop('POINTER', 1)
+                self.VMWriter.write_push('THAT', 0)
+
             elif self._input_stream.cur_token() == "(":  # fixme: incomplited. should be expression list?
                 self.write_token()  # (
                 self.compile_expression()
                 self.write_token()  # )
-            elif self._input_stream.cur_token() == ".":
+            elif self._input_stream.cur_token() == ".": # fixme:compileSubroutineCall(), like DoStatement
                 self.write_token()  # '.' symbol
                 identifier += '.' + self._input_stream.cur_token()
                 self.write_token()  # subroutine name
@@ -348,11 +415,11 @@ class CompilationEngine:
     def write_token(self):
         type = self.type_dict[self._input_stream.token_type()]
 
-        if self._input_stream.cur_token() in self.binary_op_dct:
-            t = self.binary_op_dct[self._input_stream.cur_token()]
+        if self._input_stream.cur_token() in self.binary_op_dct_vm:
+            t = self.binary_op_dct_vm[self._input_stream.cur_token()]
         else:
             t = self._input_stream.cur_token()
 
-        token = f"//<{type}> {t} </{type}>\n"
+        token = f"#<{type}> {t} </{type}>\n"
         self._output_stream.write(token)
         self._input_stream.advance()

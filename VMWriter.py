@@ -22,7 +22,7 @@ class VMWriter:
         self.segment_dct = {"CONST": "constant", "ARG": "argument",
                             "LOCAL": "local", "STATIC": "static",
                             "THIS": "this", "THAT": "that",
-                            "POINTER": "pointer", "TEMPar": "temp"}
+                            "POINTER": "pointer", "TEMP": "temp"}
         self.logic_dct = {"ADD": "add", "SUB": "sub", "NEG": "neg", "EQ": "eq",
                           "GT": "gt", "LT": "lt", "AND": "and", "OR": "or",
                           "NOT": "not", "SHIFTLEFT": "shiftleft",
