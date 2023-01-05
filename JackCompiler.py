@@ -14,7 +14,6 @@ from SymbolTable import SymbolTable
 from VMWriter import VMWriter
 
 
-
 def compile_file(
         input_file: typing.TextIO, output_file: typing.TextIO) -> None:
     """Compiles a single file.
