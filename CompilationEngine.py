@@ -122,11 +122,12 @@ class CompilationEngine:
         self.write_token()  # get field \ method \ contracture
         self.write_token()  # get subroutine return type \ 'constructor'
         sub_name = self._input_stream.cur_token()
+        func_name = self._class_name + '.' + sub_name
         # self.write_token()  # get subroutine name \ 'new'
         # self.write_token()  # get '(' symbol
         self.compile_parameter_list()
         self.write_token()  # get ')' symbol
-        self.compile_subroutine_body(func_type, sub_name)
+        self.compile_subroutine_body(func_type, func_name)
         # self.write_token() #'}'
         self._output_stream.write("</subroutineDec>\n")
 
@@ -212,79 +213,43 @@ class CompilationEngine:
                 self.compile_return()
         self._output_stream.write("</statements>\n")
 
-    # def compile_do(self) -> None:
-    #     """Compiles a do statement."""
-    #     # Your code goes here!
-    #     self._output_stream.write("<doStatement>\n")
-    #     self.write_token()  # do
-    #
-    #     identifier = self._input_stream.cur_token()
-    #     kind = self.symbol_table.kind_of(identifier)
-    #
-    #     self.write_token()  # identifier
-    #     while self._input_stream.cur_token() == ".":
-    #         self.write_token()  # '.'
-    #         identifier += '.' + self._input_stream.cur_token()
-    #         self.write_token()  # subroutine name
-    #     self.write_token()  # '('
-    #     num_args = self.compile_parameter_list()  # change from exprssion list
-    #     # self.VMWriter.write_call(identifier, num_args)
-    #     self.write_token()  # ')'
-    #
-    #     self.VMWriter.write_pop('TEMP', 0)
-    #     self.write_token()  # ;
-    #
-    #     self._output_stream.write("</doStatement>\n")
-
     def compile_do(self):
         self._output_stream.write("<doStatement>\n")
-        self.write_token()  # do
+        self.write_token() #do
         identifier = self._input_stream.cur_token()
-        self.write_token()  # idefinder
-        num_args = 0
-
-        while self._input_stream.cur_token() == ".":
-            self.write_token()  # .
-            sub_name = self._input_stream.cur_token()
-            self.write_token()  # name
-            type = self.symbol_table.type_of(identifier)
-
-            if type is not None:  # instance
-                instance_kind = self.symbol_table.kind_of(identifier)
-                instance_index = self.symbol_table.index_of(identifier)
-
-                self.VMWriter.write_push(CONVERT_KIND[instance_kind],
-                                         instance_index)
-            else:  # class
-                class_name = identifier
-
-        if self._input_stream.cur_token() == '(':
-            sub_name = identifier
-            num_args += 1
-            self.VMWriter.write_push('POINTER', 0)
-
-        self.write_token()  # '('
-        self.compile_expression_list()
-        self.write_token()  # ')'
+        self.write_token()  # identifier
+        self.compile_subroutine_call(identifier)
+        self.VMWriter.write_pop("TEMP", 0)
+        self.write_token() # ';'
+        self._output_stream.write("</doStatement>\n")
 
     def compile_let(self) -> None:
         """Compiles a let statement."""
         # Your code goes here!
         self._output_stream.write("<letStatement>\n")
+        is_array = False
         self.write_token()  # let
         var_name = self._input_stream.cur_token()
         var_kind = self.symbol_table.kind_of(var_name)
         var_index = self.symbol_table.index_of(var_name)
         self.write_token()  # varName
         if self._input_stream.cur_token() == "[":
+            is_array = True
+            self.VMWriter.write_push(CONVERT_KIND[var_kind], var_index)
+            self.VMWriter.write_arithmetic("ADD")
             self.write_token()  # [
             self.compile_expression()
             self.write_token()  # ]
         self.write_token()  # =
         self.compile_expression()
         self.write_token()  # ;
-        self.VMWriter.write_pop(var_kind, var_index)
-        self.VMWriter.write_push(var_kind, var_index)
+        if is_array:
+            self.VMWriter.write_pop("TEMP", 0)
+            self.VMWriter.write_pop("POINTER", 1)
+            self.VMWriter.write_push("TEMP", 0)
+            self.VMWriter.write_pop("THAT", 0)
+        else:
+            self.VMWriter.write_pop(CONVERT_KIND[var_kind], var_index)
         self._output_stream.write("</letStatement>\n")
 
     def compile_while(self) -> None:
@@ -426,7 +391,7 @@ class CompilationEngine:
             self.VMWriter.write_arithmetic('NEG')
 
         elif self._input_stream.token_type() == "IDENTIFIER":
-            identifier = self._input_stream.token_type()
+            identifier = self._input_stream.cur_token()
             self.write_token()  # identifier
             if self._input_stream.cur_token() == "[":  # fixme: check
                 self.write_token()  # [
@@ -435,23 +400,25 @@ class CompilationEngine:
                 # Compile array indexing
                 kind = self.symbol_table.kind_of(identifier)
                 index = self.symbol_table.index_of(identifier)
-                self.VMWriter.write_push(kind, index)
+                self.VMWriter.write_push(CONVERT_KIND[kind], index)
                 self.VMWriter.write_arithmetic('+')
                 self.VMWriter.write_pop('POINTER', 1)
                 self.VMWriter.write_push('THAT', 0)
-
-            elif self._input_stream.cur_token() == "(":  # fixme: incomplited. should be expression list?
-                self.write_token()  # (
-                self.compile_expression()
-                self.write_token()  # )
-            elif self._input_stream.cur_token() == ".":  # fixme:compileSubroutineCall(), like DoStatement
-                self.write_token()  # '.' symbol
-                identifier += '.' + self._input_stream.cur_token()
-                self.write_token()  # subroutine name
-                self.write_token()  # '(' symbol
-                num_args = self.compile_expression_list()
-                self.VMWriter.write_call(identifier, num_args)
-                self.write_token()  # ')' symbol
+            else:
+                self.compile_subroutine_call(identifier) # fixme: check if works
+            #
+            # elif self._input_stream.cur_token() == "(":  # fixme: incomplited. should be expression list?
+            #     self.write_token()  # (
+            #     self.compile_expression()
+            #     self.write_token()  # )
+            # elif self._input_stream.cur_token() == ".":  # fixme:compileSubroutineCall(), like DoStatement
+            #     self.write_token()  # '.' symbol
+            #     identifier += '.' + self._input_stream.cur_token()
+            #     self.write_token()  # subroutine name
+            #     self.write_token()  # '(' symbol
+            #     num_args = self.compile_expression_list()
+            #     self.VMWriter.write_call(identifier, num_args)
+            #     self.write_token()  # ')' symbol
 
         elif self._input_stream.cur_token() == "(":
             self.write_token()  # (
@@ -488,5 +455,28 @@ class CompilationEngine:
             t = self._input_stream.cur_token()
 
         token = f"#<{type}> {t} </{type}>\n"
-        self._output_stream.write(token)
+        #self._output_stream.write(token)
         self._input_stream.advance()
+
+
+    def compile_subroutine_call(self, identifier):
+        num_args = 0
+        if self._input_stream.cur_token() == '.':
+            self.write_token() # '.'
+            sub_name = self._input_stream.identifier()
+            self.write_token() # 'subname'
+            func_name = f'{identifier}.{sub_name}'
+            if self.symbol_table.type_of(identifier):
+                self.VMWriter.write_push("POINTER", 0)
+                func_name = f"{self.symbol_table.type_of(identifier)}.{sub_name}"
+                num_args +=1
+        else:  # method
+            kind = self.symbol_table.kind_of(identifier)
+            index = self.symbol_table.index_of(identifier)
+            self.VMWriter.write_push(CONVERT_KIND[kind], index)
+            func_name = f"{self._class_name}.{identifier}"
+            num_args += 1
+        self.write_token()  # '('
+        num_args += self.compile_expression_list()
+        self.write_token()  # ')'
+        self.VMWriter.write_call(func_name, num_args)
