@@ -96,7 +96,7 @@ class VMWriter:
             n_args (int): the number of arguments the function receives.
         """
         # Your code goes here!
-        self._output_stream.write(f"call {str} {n_args}\n")
+        self._output_stream.write(f"call {name} {n_args}\n")
 
     def write_function(self, name: str, n_locals: int) -> None:
         """Writes a VM function command.
@@ -111,6 +111,6 @@ class VMWriter:
     def write_return(self) -> None:
         """Writes a VM return command."""
         # Your code goes here!
-        self.output.write(f"return\n")
+        self._output_stream.write(f"return\n")
 
 

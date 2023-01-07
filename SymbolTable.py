@@ -11,6 +11,7 @@ TYPE = 0
 KIND = 1
 INDEX = 2
 
+
 class SymbolTable:
     """A symbol table that associates names with information needed for Jack
     compilation: type, kind and running index. The symbol table has two nested
@@ -24,7 +25,6 @@ class SymbolTable:
         self._subroutine_scope = {}
         self._counter = {"STATIC": 0, "FIELD": 0, "ARG": 0, "VAR": 0}
         self._in_class_scope = True
-
 
     def start_subroutine(self) -> None:
         """Starts a new subroutine scope (i.e., resets the subroutine's 
@@ -79,7 +79,6 @@ class SymbolTable:
 
         return self.helper(name, KIND)
 
-
     def type_of(self, name: str) -> str:
         """
         Args:
@@ -113,4 +112,3 @@ class SymbolTable:
                 out = self._subroutine_scope[name][request]
 
         return out
-
