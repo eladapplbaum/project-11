@@ -161,13 +161,12 @@ class CompilationEngine:
         params = 0
         self._output_stream.write("<parameterList>\n")
         while self._input_stream.cur_token() != ")":
-
             params += 1
             type = self._input_stream.cur_token()
             name = self._input_stream.cur_token()
             self.symbol_table.define(name, type, 'ARG')
             self.write_token()
-            self.write_token() # "," fixme
+            self.write_token()  # "," fixme
 
         self._output_stream.write("</parameterList>\n")
 
@@ -215,12 +214,12 @@ class CompilationEngine:
 
     def compile_do(self):
         self._output_stream.write("<doStatement>\n")
-        self.write_token() #do
+        self.write_token()  # do
         identifier = self._input_stream.cur_token()
         self.write_token()  # identifier
         self.compile_subroutine_call(identifier)
         self.VMWriter.write_pop("TEMP", 0)
-        self.write_token() # ';'
+        self.write_token()  # ';'
         self._output_stream.write("</doStatement>\n")
 
     def compile_let(self) -> None:
@@ -371,7 +370,7 @@ class CompilationEngine:
 
         if self._input_stream.token_type() == 'STRING_CONST':  # fixme: check
             string = self._input_stream.cur_token()
-            self.VMWriter.write_push('CONST', string)
+            # self.VMWriter.write_push('CONST', string) # line is wrong
             self.VMWriter.write_call('String.new', 1)
             for char in string:
                 self.VMWriter.write_push('CONST', ord(char))
@@ -405,7 +404,8 @@ class CompilationEngine:
                 self.VMWriter.write_pop('POINTER', 1)
                 self.VMWriter.write_push('THAT', 0)
             else:
-                self.compile_subroutine_call(identifier) # fixme: check if works
+                self.compile_subroutine_call(
+                    identifier)  # fixme: check if works
             #
             # elif self._input_stream.cur_token() == "(":  # fixme: incomplited. should be expression list?
             #     self.write_token()  # (
@@ -455,21 +455,20 @@ class CompilationEngine:
             t = self._input_stream.cur_token()
 
         token = f"#<{type}> {t} </{type}>\n"
-        #self._output_stream.write(token)
+        # self._output_stream.write(token)
         self._input_stream.advance()
-
 
     def compile_subroutine_call(self, identifier):
         num_args = 0
         if self._input_stream.cur_token() == '.':
-            self.write_token() # '.'
+            self.write_token()  # '.'
             sub_name = self._input_stream.identifier()
-            self.write_token() # 'subname'
+            self.write_token()  # 'subname'
             func_name = f'{identifier}.{sub_name}'
             if self.symbol_table.type_of(identifier):
                 self.VMWriter.write_push("POINTER", 0)
                 func_name = f"{self.symbol_table.type_of(identifier)}.{sub_name}"
-                num_args +=1
+                num_args += 1
         else:  # method
             kind = self.symbol_table.kind_of(identifier)
             index = self.symbol_table.index_of(identifier)
