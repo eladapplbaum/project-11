@@ -375,6 +375,7 @@ class CompilationEngine:
             for char in string:
                 self.VMWriter.write_push('CONST', ord(char))
                 self.VMWriter.write_call('String.appendChar', 2)
+            self.write_token()  # the string
 
         elif self._input_stream.cur_token() in self.keyword_constant:
             self.VMWriter.write_push(
@@ -400,10 +401,10 @@ class CompilationEngine:
                 kind = self.symbol_table.kind_of(identifier)
                 index = self.symbol_table.index_of(identifier)
                 self.VMWriter.write_push(CONVERT_KIND[kind], index)
-                self.VMWriter.write_arithmetic('+')
+                self.VMWriter.write_arithmetic('ADD')
                 self.VMWriter.write_pop('POINTER', 1)
                 self.VMWriter.write_push('THAT', 0)
-            else:
+            elif self._input_stream.cur_token() in {'.', '('}:
                 self.compile_subroutine_call(
                     identifier)  # fixme: check if works
             #
