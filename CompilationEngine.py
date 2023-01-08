@@ -88,19 +88,21 @@ class CompilationEngine:
         # Your code goes here!
         self._output_stream.write("<classVarDec>\n")
         kind = self._input_stream.cur_token()
+        if kind == "field":
+            kind = "this"
         self.write_token()  # static or field
         type = self._input_stream.cur_token()
         self.write_token()  # var type
-        names = []
-        names.append(self._input_stream.cur_token())
+        name = self._input_stream.cur_token()
         self.write_token()  # var name
+        self.symbol_table.define(name, type, kind)
         while self._input_stream.cur_token() == ",":
             self.write_token()  # ","
-            names.append(self._input_stream.cur_token())
+            name = self._input_stream.cur_token()
             self.write_token()  # var name
-        self.write_token()  # ;
-        for name in names:
             self.symbol_table.define(name, type, kind)
+        self.write_token()  # ;
+
         self._output_stream.write("</classVarDec>\n")
 
     def compile_subroutine(self) -> None:
@@ -123,8 +125,8 @@ class CompilationEngine:
         self.write_token()  # get subroutine return type \ 'constructor'
         sub_name = self._input_stream.cur_token()
         func_name = self._class_name + '.' + sub_name
-        # self.write_token()  # get subroutine name \ 'new'
-        # self.write_token()  # get '(' symbol
+        self.write_token()  # get subroutine name \ 'new'
+        self.write_token()  # get '(' symbol
         self.compile_parameter_list()
         self.write_token()  # get ')' symbol
         self.compile_subroutine_body(func_type, func_name)
@@ -160,13 +162,20 @@ class CompilationEngine:
         # Your code goes here!
         params = 0
         self.write_xml_tag("parameterList")
-        while self._input_stream.cur_token() != ")":
+        if self._input_stream.cur_token() != ")":
             params += 1
             type = self._input_stream.cur_token()
+            self.write_token()  # type
             name = self._input_stream.cur_token()
             self.symbol_table.define(name, type, 'ARG')
-            self.write_token()
-            self.write_token()  # "," fixme
+            self.write_token()  # name
+            while self._input_stream.cur_token() == ',':
+                self.write_token()  # ","
+                type = self._input_stream.cur_token()
+                self.write_token()  # type
+                name = self._input_stream.cur_token()
+                self.symbol_table.define(name, type, 'ARG')
+                self.write_token()  # name
 
         self.write_xml_tag("parameterList", True)
 
@@ -258,24 +267,23 @@ class CompilationEngine:
         """Compiles a while statement."""
         # Your code goes here!
         self.write_xml_tag("whileStatement")
-        self.if_while_labels_count += 1
-        self.VMWriter.write_label(f"label {self.if_while_labels_count}")
+        self.VMWriter.write_label(f"WHILE_EXP{self.if_while_labels_count}")
         self.write_token()  # while
         self.write_token()  # (
         self.compile_expression()
         self.write_token()  # )
 
         self.VMWriter.write_arithmetic("NOT")
-        self.VMWriter.write_if(f"label{self.if_while_labels_count + 1}")
+        self.VMWriter.write_if(f"WHILE_END{self.if_while_labels_count}")
         self.write_token()  # {
 
-        if_while_labels_count = self.if_while_labels_count  # for recursive
-        self.if_while_labels_count += 1
+
         self.compile_statements()
-        self.VMWriter.write_goto(f"label{if_while_labels_count}")
-        self.VMWriter.write_label(f"label{if_while_labels_count + 1}")
+        self.VMWriter.write_goto(f"WHILE_EXP{self.if_while_labels_count}")
+        self.VMWriter.write_label(f"WHILE_END{self.if_while_labels_count}")
 
         self.write_token()  # }
+        self.if_while_labels_count += 1
         self.write_xml_tag("whileStatement", True)
 
     def compile_return(self) -> None:
@@ -477,7 +485,7 @@ class CompilationEngine:
         num_args = 0
         if self._input_stream.cur_token() == '.':
             self.write_token()  # '.'
-            sub_name = self._input_stream.identifier()
+            sub_name = self._input_stream.cur_token()
             self.write_token()  # 'subname'
             func_name = f'{identifier}.{sub_name}'
             if self.symbol_table.type_of(identifier):
