@@ -234,15 +234,18 @@ class CompilationEngine:
         self.write_token()  # varName
         if self._input_stream.cur_token() == "[":
             is_array = True
-            self.VMWriter.write_push(CONVERT_KIND[var_kind], var_index)
-            self.VMWriter.write_arithmetic("ADD")
             self.write_token()  # [
             self.compile_expression()
             self.write_token()  # ]
+
+            self.VMWriter.write_push(CONVERT_KIND[var_kind], var_index)
+            self.VMWriter.write_arithmetic("ADD")
+
         self.write_token()  # =
         self.compile_expression()
         self.write_token()  # ;
         if is_array:
+
             self.VMWriter.write_pop("TEMP", 0)
             self.VMWriter.write_pop("POINTER", 1)
             self.VMWriter.write_push("TEMP", 0)
@@ -262,15 +265,15 @@ class CompilationEngine:
         self.compile_expression()
         self.write_token()  # )
 
-        self.VMWriter.write_arithmetic("NEG")
-        self.VMWriter.write_if(f"label {self.if_while_labels_count + 1}")
+        self.VMWriter.write_arithmetic("NOT")
+        self.VMWriter.write_if(f"label{self.if_while_labels_count + 1}")
         self.write_token()  # {
 
         if_while_labels_count = self.if_while_labels_count  # for recursive
         self.if_while_labels_count += 1
         self.compile_statements()
-        self.VMWriter.write_goto(f"label {if_while_labels_count}")
-        self.VMWriter.write_label(f"label {if_while_labels_count + 1}")
+        self.VMWriter.write_goto(f"label{if_while_labels_count}")
+        self.VMWriter.write_label(f"label{if_while_labels_count + 1}")
 
         self.write_token()  # }
         self.write_xml_tag("whileStatement", True)
@@ -371,6 +374,7 @@ class CompilationEngine:
         if self._input_stream.token_type() == 'STRING_CONST':  # fixme: check
             string = self._input_stream.cur_token()
             # self.VMWriter.write_push('CONST', string) # line is wrong
+            self.VMWriter.write_push('CONST', len(string))
             self.VMWriter.write_call('String.new', 1)
             for char in string:
                 self.VMWriter.write_push('CONST', ord(char))
@@ -390,6 +394,11 @@ class CompilationEngine:
             self.compile_term()
             self.VMWriter.write_arithmetic('NEG')
 
+        elif self._input_stream.cur_token() == "(":
+            self.write_token()  # (
+            self.compile_expression()
+            self.write_token()  # )
+
         elif self._input_stream.token_type() == "IDENTIFIER":
             identifier = self._input_stream.cur_token()
             self.write_token()  # identifier
@@ -407,6 +416,16 @@ class CompilationEngine:
             elif self._input_stream.cur_token() in {'.', '('}:
                 self.compile_subroutine_call(
                     identifier)  # fixme: check if works
+            else:
+                var_kind = CONVERT_KIND[self.symbol_table.kind_of(identifier)]
+                var_index = self.symbol_table.index_of(identifier)
+                self.VMWriter.write_push(var_kind, var_index)
+
+            # else:
+            #     var = self._input_stream.cur_token()
+            #     var_kind = CONVERT_KIND[self.symbol_table.kind_of(var)]
+            #     var_index = self.symbol_table.index_of(var)
+            #     self.VMWriter.write_push(var_kind, var_index)
             #
             # elif self._input_stream.cur_token() == "(":  # fixme: incomplited. should be expression list?
             #     self.write_token()  # (
@@ -420,11 +439,6 @@ class CompilationEngine:
             #     num_args = self.compile_expression_list()
             #     self.VMWriter.write_call(identifier, num_args)
             #     self.write_token()  # ')' symbol
-
-        elif self._input_stream.cur_token() == "(":
-            self.write_token()  # (
-            self.compile_expression()
-            self.write_token()  # )
 
         self.write_xml_tag("term", True)
 
@@ -482,4 +496,5 @@ class CompilationEngine:
         self.VMWriter.write_call(func_name, num_args)
 
     def write_xml_tag(self, tag, end=False):
+        return
         self._output_stream.write(f"<{'/' if end else ''}{tag}>\n")
