@@ -66,7 +66,7 @@ class CompilationEngine:
     def compile_class(self) -> None:
         """Compiles a complete class."""
         # Your code goes here!
-        self._output_stream.write("<class>\n")
+        self.write_xml_tag("class")
 
         self.write_token()  # class
         self._class_name = self._input_stream.cur_token()
@@ -81,7 +81,7 @@ class CompilationEngine:
                 self.compile_subroutine()
 
         self.write_token()  # }
-        self._output_stream.write("</class>\n")
+        self.write_xml_tag("class", True)
 
     def compile_class_var_dec(self) -> None:
         """Compiles a static declaration or a field declaration."""
@@ -112,7 +112,7 @@ class CompilationEngine:
         # Your code goes here!
         # Your code goes here!
 
-        self._output_stream.write("<subroutineDec>\n")
+        self.write_xml_tag("subroutineDec")
 
         self.symbol_table.start_subroutine()
         func_type = self._input_stream.cur_token()
@@ -129,10 +129,10 @@ class CompilationEngine:
         self.write_token()  # get ')' symbol
         self.compile_subroutine_body(func_type, func_name)
         # self.write_token() #'}'
-        self._output_stream.write("</subroutineDec>\n")
+        self.write_xml_tag("subroutineDec", True)
 
     def compile_subroutine_body(self, func_type, name):
-        self._output_stream.write("<subroutineBody>\n")
+        self.write_xml_tag("subroutineBody")
         self.write_token()  # '{'
         while self._input_stream.cur_token() == 'var':
             self.compile_var_dec()
@@ -151,7 +151,7 @@ class CompilationEngine:
             self.VMWriter.write_pop('POINTER', 0)
         self.compile_statements()
         self.write_token()  # '}'
-        self._output_stream.write("</subroutineBody>\n")
+        self.write_xml_tag("subroutineBody", True)
 
     def compile_parameter_list(self) -> None:
         """Compiles a (possibly empty) parameter list, not including the 
@@ -159,22 +159,21 @@ class CompilationEngine:
         """
         # Your code goes here!
         params = 0
-        self._output_stream.write("<parameterList>\n")
+        self.write_xml_tag("parameterList")
         while self._input_stream.cur_token() != ")":
-
             params += 1
             type = self._input_stream.cur_token()
             name = self._input_stream.cur_token()
             self.symbol_table.define(name, type, 'ARG')
             self.write_token()
-            self.write_token() # "," fixme
+            self.write_token()  # "," fixme
 
-        self._output_stream.write("</parameterList>\n")
+        self.write_xml_tag("parameterList", True)
 
     def compile_var_dec(self) -> None:
         """Compiles a var declaration."""
         # Your code goes here!
-        self._output_stream.write("<varDec>\n")
+        self.write_xml_tag("varDec")
         self.write_token()  # var
         type = self._input_stream.cur_token()
         self.write_token()  # type
@@ -191,14 +190,14 @@ class CompilationEngine:
         for name in names:
             self.symbol_table.define(name, type, 'VAR')
 
-        self._output_stream.write("</varDec>\n")
+        self.write_xml_tag("varDec", True)
 
     def compile_statements(self) -> None:
         """Compiles a sequence of statements, not including the enclosing 
         "{}".
         """
         # Your code goes here!
-        self._output_stream.write("<statements>\n")
+        self.write_xml_tag("Statement")
         while self._input_stream.cur_token() in {"let", "if", "while", "do",
                                                  "return"}:
             if self._input_stream.cur_token() == "let":
@@ -211,22 +210,22 @@ class CompilationEngine:
                 self.compile_do()
             elif self._input_stream.cur_token() == "return":
                 self.compile_return()
-        self._output_stream.write("</statements>\n")
+        self.write_xml_tag("Statement", True)
 
     def compile_do(self):
-        self._output_stream.write("<doStatement>\n")
-        self.write_token() #do
+        self.write_xml_tag("doStatement")
+        self.write_token()  # do
         identifier = self._input_stream.cur_token()
         self.write_token()  # identifier
         self.compile_subroutine_call(identifier)
         self.VMWriter.write_pop("TEMP", 0)
-        self.write_token() # ';'
-        self._output_stream.write("</doStatement>\n")
+        self.write_token()  # ';'
+        self.write_xml_tag("doStatement", True)
 
     def compile_let(self) -> None:
         """Compiles a let statement."""
         # Your code goes here!
-        self._output_stream.write("<letStatement>\n")
+        self.write_xml_tag("letStatement")
         is_array = False
         self.write_token()  # let
         var_name = self._input_stream.cur_token()
@@ -235,27 +234,30 @@ class CompilationEngine:
         self.write_token()  # varName
         if self._input_stream.cur_token() == "[":
             is_array = True
-            self.VMWriter.write_push(CONVERT_KIND[var_kind], var_index)
-            self.VMWriter.write_arithmetic("ADD")
             self.write_token()  # [
             self.compile_expression()
             self.write_token()  # ]
+
+            self.VMWriter.write_push(CONVERT_KIND[var_kind], var_index)
+            self.VMWriter.write_arithmetic("ADD")
+
         self.write_token()  # =
         self.compile_expression()
         self.write_token()  # ;
         if is_array:
+
             self.VMWriter.write_pop("TEMP", 0)
             self.VMWriter.write_pop("POINTER", 1)
             self.VMWriter.write_push("TEMP", 0)
             self.VMWriter.write_pop("THAT", 0)
         else:
             self.VMWriter.write_pop(CONVERT_KIND[var_kind], var_index)
-        self._output_stream.write("</letStatement>\n")
+        self.write_xml_tag("letStatement", True)
 
     def compile_while(self) -> None:
         """Compiles a while statement."""
         # Your code goes here!
-        self._output_stream.write("<whileStatement>\n")
+        self.write_xml_tag("whileStatement")
         self.if_while_labels_count += 1
         self.VMWriter.write_label(f"label {self.if_while_labels_count}")
         self.write_token()  # while
@@ -263,23 +265,23 @@ class CompilationEngine:
         self.compile_expression()
         self.write_token()  # )
 
-        self.VMWriter.write_arithmetic("NEG")
-        self.VMWriter.write_if(f"label {self.if_while_labels_count + 1}")
+        self.VMWriter.write_arithmetic("NOT")
+        self.VMWriter.write_if(f"label{self.if_while_labels_count + 1}")
         self.write_token()  # {
 
         if_while_labels_count = self.if_while_labels_count  # for recursive
         self.if_while_labels_count += 1
         self.compile_statements()
-        self.VMWriter.write_goto(f"label {if_while_labels_count}")
-        self.VMWriter.write_label(f"label {if_while_labels_count + 1}")
+        self.VMWriter.write_goto(f"label{if_while_labels_count}")
+        self.VMWriter.write_label(f"label{if_while_labels_count + 1}")
 
         self.write_token()  # }
-        self._output_stream.write("</whileStatement>\n")
+        self.write_xml_tag("whileStatement", True)
 
     def compile_return(self) -> None:
         """Compiles a return statement."""
         # Your code goes here!
-        self._output_stream.write("<returnStatement>\n")
+        self.write_xml_tag("returnStatement")
         self.write_token()  # return
         while self._input_stream.cur_token() != ';':
             self.compile_expression()
@@ -287,12 +289,12 @@ class CompilationEngine:
             self.VMWriter.write_push('CONST', 0)
         self.write_token()  # ';'
         self.VMWriter.write_return()
-        self._output_stream.write("</returnStatement>\n")
+        self.write_xml_tag("returnStatement", True)
 
     def compile_if(self) -> None:
         """Compiles a if statement, possibly with a trailing else clause."""
         # Your code goes here!
-        self._output_stream.write("<ifStatement>\n")
+        self.write_xml_tag("ifStatement")
         self.write_token()  # if
         self.write_token()  # (
         self.compile_expression()
@@ -317,13 +319,13 @@ class CompilationEngine:
             self.write_token()  # }
         self.VMWriter.write_label(f"label {if_while_labels_count + 1}")
 
-        self._output_stream.write("</ifStatement>\n")
+        self.write_xml_tag("ifStatement", True)
 
     def compile_expression(self) -> None:
         """Compiles an expression."""
         # Your code goes here!
 
-        self._output_stream.write("<expression>\n")
+        self.write_xml_tag("expression")
         self.compile_term()
 
         ops = []
@@ -351,7 +353,7 @@ class CompilationEngine:
         #         self.VMWriter.write_arithmetic(
         #             self.binary_op_dct_vm[self._input_stream.cur_token()])
         #     self.write_token()  # op
-        self._output_stream.write("</expression>\n")
+        self.write_xml_tag("expression", True)
 
     def compile_term(self) -> None:
         """Compiles a term. 
@@ -364,18 +366,20 @@ class CompilationEngine:
         part of this term and should not be advanced over.
         """
         # Your code goes here!
-        self._output_stream.write("<term>\n")
+        self.write_xml_tag("term")
         if self._input_stream.token_type() == 'INT_CONST':
             self.VMWriter.write_push('CONST', self._input_stream.cur_token())
             self.write_token()  # the number
 
         if self._input_stream.token_type() == 'STRING_CONST':  # fixme: check
             string = self._input_stream.cur_token()
-            self.VMWriter.write_push('CONST', string)
+            # self.VMWriter.write_push('CONST', string) # line is wrong
+            self.VMWriter.write_push('CONST', len(string))
             self.VMWriter.write_call('String.new', 1)
             for char in string:
                 self.VMWriter.write_push('CONST', ord(char))
                 self.VMWriter.write_call('String.appendChar', 2)
+            self.write_token()  # the string
 
         elif self._input_stream.cur_token() in self.keyword_constant:
             self.VMWriter.write_push(
@@ -390,6 +394,11 @@ class CompilationEngine:
             self.compile_term()
             self.VMWriter.write_arithmetic('NEG')
 
+        elif self._input_stream.cur_token() == "(":
+            self.write_token()  # (
+            self.compile_expression()
+            self.write_token()  # )
+
         elif self._input_stream.token_type() == "IDENTIFIER":
             identifier = self._input_stream.cur_token()
             self.write_token()  # identifier
@@ -401,11 +410,22 @@ class CompilationEngine:
                 kind = self.symbol_table.kind_of(identifier)
                 index = self.symbol_table.index_of(identifier)
                 self.VMWriter.write_push(CONVERT_KIND[kind], index)
-                self.VMWriter.write_arithmetic('+')
+                self.VMWriter.write_arithmetic('ADD')  # fixme change from '+'
                 self.VMWriter.write_pop('POINTER', 1)
                 self.VMWriter.write_push('THAT', 0)
+            elif self._input_stream.cur_token() in {'.', '('}:
+                self.compile_subroutine_call(
+                    identifier)  # fixme: check if works
             else:
-                self.compile_subroutine_call(identifier) # fixme: check if works
+                var_kind = CONVERT_KIND[self.symbol_table.kind_of(identifier)]
+                var_index = self.symbol_table.index_of(identifier)
+                self.VMWriter.write_push(var_kind, var_index)
+
+            # else:
+            #     var = self._input_stream.cur_token()
+            #     var_kind = CONVERT_KIND[self.symbol_table.kind_of(var)]
+            #     var_index = self.symbol_table.index_of(var)
+            #     self.VMWriter.write_push(var_kind, var_index)
             #
             # elif self._input_stream.cur_token() == "(":  # fixme: incomplited. should be expression list?
             #     self.write_token()  # (
@@ -420,18 +440,13 @@ class CompilationEngine:
             #     self.VMWriter.write_call(identifier, num_args)
             #     self.write_token()  # ')' symbol
 
-        elif self._input_stream.cur_token() == "(":
-            self.write_token()  # (
-            self.compile_expression()
-            self.write_token()  # )
-
-        self._output_stream.write("</term>\n")
+        self.write_xml_tag("term", True)
 
     def compile_expression_list(
             self) -> int:
         """Compiles a (possibly empty) comma-separated list of expressions."""
         # Your code goes here!
-        self._output_stream.write("<expressionList>\n")
+        self.write_xml_tag("expressionList")
         num_args = 0
         if self._input_stream.cur_token() != ")":
             self.compile_expression()
@@ -443,7 +458,7 @@ class CompilationEngine:
             self.compile_expression()
             num_args += 1
 
-        self._output_stream.write("</expressionList>\n")
+        self.write_xml_tag("expressionList", True)
         return num_args
 
     def write_token(self):
@@ -455,21 +470,20 @@ class CompilationEngine:
             t = self._input_stream.cur_token()
 
         token = f"#<{type}> {t} </{type}>\n"
-        #self._output_stream.write(token)
+        # self._output_stream.write(token)
         self._input_stream.advance()
-
 
     def compile_subroutine_call(self, identifier):
         num_args = 0
         if self._input_stream.cur_token() == '.':
-            self.write_token() # '.'
+            self.write_token()  # '.'
             sub_name = self._input_stream.identifier()
-            self.write_token() # 'subname'
+            self.write_token()  # 'subname'
             func_name = f'{identifier}.{sub_name}'
             if self.symbol_table.type_of(identifier):
                 self.VMWriter.write_push("POINTER", 0)
                 func_name = f"{self.symbol_table.type_of(identifier)}.{sub_name}"
-                num_args +=1
+                num_args += 1
         else:  # method
             kind = self.symbol_table.kind_of(identifier)
             index = self.symbol_table.index_of(identifier)
@@ -480,3 +494,7 @@ class CompilationEngine:
         num_args += self.compile_expression_list()
         self.write_token()  # ')'
         self.VMWriter.write_call(func_name, num_args)
+
+    def write_xml_tag(self, tag, end=False):
+        return
+        self._output_stream.write(f"<{'/' if end else ''}{tag}>\n")
