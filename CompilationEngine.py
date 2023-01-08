@@ -32,6 +32,7 @@ class CompilationEngine:
         # Your code goes here!
         # Note that you can write to output_stream like so:
         # output_stream.write("Hello world! \n")
+        self.if_labels_count = 0
         self._class_name = ""
         self._output_stream = output_stream
         self._input_stream = input_stream
@@ -54,14 +55,14 @@ class CompilationEngine:
                             '#': 'SHIFRIGHT'}
 
         self.keyword_constant = {'true', 'false', 'null', 'this'}
-        self.keyword_constant_dct = {'true': ['CONST', 1],
+        self.keyword_constant_dct = {'true': ['CONST', 0],
                                      'false': ['CONST', 0],
                                      'null': ['CONST', 0],
                                      'this': ['POINTER', 0]}
         self.classVarDec = ['static', 'field']
         self.subroutineDec = ['constructor', 'method', 'function']
         self.symbol_table = SymbolTable()
-        self.if_while_labels_count = 0
+        self.while_labels_count = 0
 
     def compile_class(self) -> None:
         """Compiles a complete class."""
@@ -267,23 +268,24 @@ class CompilationEngine:
         """Compiles a while statement."""
         # Your code goes here!
         self.write_xml_tag("whileStatement")
-        self.VMWriter.write_label(f"WHILE_EXP{self.if_while_labels_count}")
+        while_labels_count = self.while_labels_count
+        self.while_labels_count += 1
+        self.VMWriter.write_label(f"WHILE_EXP{while_labels_count}")
         self.write_token()  # while
         self.write_token()  # (
         self.compile_expression()
         self.write_token()  # )
 
         self.VMWriter.write_arithmetic("NOT")
-        self.VMWriter.write_if(f"WHILE_END{self.if_while_labels_count}")
+        self.VMWriter.write_if(f"WHILE_END{while_labels_count}")
         self.write_token()  # {
 
 
         self.compile_statements()
-        self.VMWriter.write_goto(f"WHILE_EXP{self.if_while_labels_count}")
-        self.VMWriter.write_label(f"WHILE_END{self.if_while_labels_count}")
+        self.VMWriter.write_goto(f"WHILE_EXP{while_labels_count}")
+        self.VMWriter.write_label(f"WHILE_END{while_labels_count}")
 
         self.write_token()  # }
-        self.if_while_labels_count += 1
         self.write_xml_tag("whileStatement", True)
 
     def compile_return(self) -> None:
@@ -303,19 +305,17 @@ class CompilationEngine:
         """Compiles a if statement, possibly with a trailing else clause."""
         # Your code goes here!
         self.write_xml_tag("ifStatement")
+        if_labels_count = self.if_labels_count
         self.write_token()  # if
         self.write_token()  # (
         self.compile_expression()
         self.write_token()  # )
         self.VMWriter.write_arithmetic("NEG")
-        self.if_while_labels_count += 1
-        self.VMWriter.write_if(f"label {self.if_while_labels_count}")
+        self.VMWriter.write_if(f"IF_FALSE{if_labels_count}")
 
-        if_while_labels_count = self.if_while_labels_count  # for recursive call
-        self.if_while_labels_count += 1
-        self.VMWriter.write_goto(f"label {if_while_labels_count + 1}")
+        self.VMWriter.write_goto(f"IF_END{if_labels_count}")
 
-        self.VMWriter.write_label(f"label {self.if_while_labels_count}")
+        self.VMWriter.write_label(f"IF_FALSE{if_labels_count}")
         self.write_token()  # {
         self.compile_statements()
         self.write_token()  # }
@@ -325,8 +325,8 @@ class CompilationEngine:
             self.write_token()  # {
             self.compile_statements()
             self.write_token()  # }
-        self.VMWriter.write_label(f"label {if_while_labels_count + 1}")
-
+        self.VMWriter.write_label(f"IF_END{if_labels_count}")
+        self.while_labels_count += 1
         self.write_xml_tag("ifStatement", True)
 
     def compile_expression(self) -> None:
@@ -394,13 +394,14 @@ class CompilationEngine:
                 self.keyword_constant_dct[self._input_stream.cur_token()][0],
                 self.keyword_constant_dct[self._input_stream.cur_token()][1])
             if self._input_stream.cur_token() == 'true':
-                self.VMWriter.write_arithmetic('NEG')
+                self.VMWriter.write_arithmetic('NOT')
             self.write_token()  # the keywordConstant
 
         elif self._input_stream.cur_token() in self.unary_op_vm:
+            op = self._input_stream.cur_token()
             self.write_token()  # ~ or -
             self.compile_term()
-            self.VMWriter.write_arithmetic('NEG')
+            self.VMWriter.write_arithmetic(self.unary_op_vm[op])
 
         elif self._input_stream.cur_token() == "(":
             self.write_token()  # (
