@@ -338,15 +338,12 @@ class CompilationEngine:
         # Your code goes here!
 
         self.write_xml_tag("expression")
+
         self.compile_term()
-
-        ops = []
         while self._input_stream.cur_token() in self.binary_op_dct_vm:
-            ops.append(self._input_stream.cur_token())
-            self._input_stream.advance()  # op
+            op = self._input_stream.cur_token()
+            self.write_token() #op
             self.compile_term()
-
-        for op in ops:
             if op == '*':
                 self.VMWriter.write_call('Math.multiply', 2)
             elif op == '/':
@@ -354,6 +351,22 @@ class CompilationEngine:
             else:
                 self.VMWriter.write_arithmetic(
                     self.binary_op_dct_vm[op])
+        # self.compile_term()
+        #
+        # ops = []
+        # while self._input_stream.cur_token() in self.binary_op_dct_vm:
+        #     ops.append(self._input_stream.cur_token())
+        #     self.write_token()  # op
+        #     self.compile_term()
+        #
+        # for op in ops:
+        #     if op == '*':
+        #         self.VMWriter.write_call('Math.multiply', 2)
+        #     elif op == '/':
+        #         self.VMWriter.write_call('Math.divide', 2)
+        #     else:
+        #         self.VMWriter.write_arithmetic(
+        #             self.binary_op_dct_vm[op])
 
         # while self._input_stream.cur_token() in self.binary_op_dct_vm:
         #     self.compile_term()
@@ -383,7 +396,7 @@ class CompilationEngine:
             self.VMWriter.write_push('CONST', self._input_stream.cur_token())
             self.write_token()  # the number
 
-        if self._input_stream.token_type() == 'STRING_CONST':  # fixme: check
+        elif self._input_stream.token_type() == 'STRING_CONST':
             string = self._input_stream.cur_token()
             # self.VMWriter.write_push('CONST', string) # line is wrong
             self.VMWriter.write_push('CONST', len(string))
