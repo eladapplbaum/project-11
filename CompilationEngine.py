@@ -87,7 +87,7 @@ class CompilationEngine:
     def compile_class_var_dec(self) -> None:
         """Compiles a static declaration or a field declaration."""
         # Your code goes here!
-        self._output_stream.write("<classVarDec>\n")
+        self.write_xml_tag("classVarDec")
         kind = self._input_stream.cur_token().upper()
         self.write_token()  # static or field
         type = self._input_stream.cur_token().upper()
@@ -102,7 +102,7 @@ class CompilationEngine:
             self.symbol_table.define(name, type, kind)
         self.write_token()  # ;
 
-        self._output_stream.write("</classVarDec>\n")
+        self.write_xml_tag("classVarDec", True)
 
     def compile_subroutine(self) -> None:
         """
@@ -143,7 +143,7 @@ class CompilationEngine:
             # Save self at pointer
             self.VMWriter.write_push('ARG', 0)
             self.VMWriter.write_pop('POINTER', 0)
-        if func_type == 'contracture':
+        if func_type == 'constructor':
             # Memory allocates for all fields
             fields = self.symbol_table.var_count('FIELD')
             self.VMWriter.write_push('CONST', fields)
