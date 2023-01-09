@@ -326,7 +326,7 @@ class CompilationEngine:
             self.compile_statements()
             self.write_token()  # }
         self.VMWriter.write_label(f"IF_END{if_labels_count}")
-        self.while_labels_count += 1
+        self.if_labels_count += 1
         self.write_xml_tag("ifStatement", True)
 
     def compile_expression(self) -> None:
