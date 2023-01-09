@@ -293,8 +293,9 @@ class CompilationEngine:
         # Your code goes here!
         self.write_xml_tag("returnStatement")
         self.write_token()  # return
-        while self._input_stream.cur_token() != ';':
-            self.compile_expression()
+        if self._input_stream.cur_token() != ';':
+            while self._input_stream.cur_token() != ';':
+                self.compile_expression()
         else:
             self.VMWriter.write_push('CONST', 0)
         self.write_token()  # ';'
