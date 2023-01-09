@@ -80,7 +80,8 @@ class CompilationEngine:
                 self.compile_class_var_dec()
             elif self._input_stream.cur_token() in self.subroutineDec:
                 self.compile_subroutine()
-
+            self.if_labels_count = 0
+            self.while_labels_count = 0
         self.write_token()  # }
         self.write_xml_tag("class", True)
 
@@ -90,7 +91,7 @@ class CompilationEngine:
         self.write_xml_tag("classVarDec")
         kind = self._input_stream.cur_token().upper()
         self.write_token()  # static or field
-        type = self._input_stream.cur_token().upper()
+        type = self._input_stream.cur_token()
         self.write_token()  # var type
         name = self._input_stream.cur_token()
         self.write_token()  # var name
@@ -163,14 +164,14 @@ class CompilationEngine:
         self.write_xml_tag("parameterList")
         if self._input_stream.cur_token() != ")":
             params += 1
-            type = self._input_stream.cur_token().upper()
+            type = self._input_stream.cur_token()
             self.write_token()  # type
             name = self._input_stream.cur_token()
             self.symbol_table.define(name, type, 'ARG')
             self.write_token()  # name
             while self._input_stream.cur_token() == ',':
                 self.write_token()  # ","
-                type = self._input_stream.cur_token().upper()
+                type = self._input_stream.cur_token()
                 self.write_token()  # type
                 name = self._input_stream.cur_token()
                 self.symbol_table.define(name, type, 'ARG')
@@ -183,7 +184,7 @@ class CompilationEngine:
         # Your code goes here!
         self.write_xml_tag("varDec")
         self.write_token()  # var
-        type = self._input_stream.cur_token().upper()
+        type = self._input_stream.cur_token()
         self.write_token()  # type
 
         names = []
@@ -305,27 +306,31 @@ class CompilationEngine:
         # Your code goes here!
         self.write_xml_tag("ifStatement")
         if_labels_count = self.if_labels_count
+        self.if_labels_count +=1
         self.write_token()  # if
         self.write_token()  # (
         self.compile_expression()
         self.write_token()  # )
-        self.VMWriter.write_arithmetic("NEG")
-        self.VMWriter.write_if(f"IF_FALSE{if_labels_count}")
+        self.VMWriter.write_if(f"IF_TRUE{if_labels_count}")
 
-        self.VMWriter.write_goto(f"IF_END{if_labels_count}")
+        self.VMWriter.write_goto(f"IF_FALSE{if_labels_count}")
 
-        self.VMWriter.write_label(f"IF_FALSE{if_labels_count}")
+        self.VMWriter.write_label(f"IF_TRUE{if_labels_count}")
         self.write_token()  # {
         self.compile_statements()
         self.write_token()  # }
 
         if self._input_stream.cur_token() == "else":
+            self.VMWriter.write_goto(f"IF_END{if_labels_count}")
+            self.VMWriter.write_label(f"IF_FALSE{if_labels_count}")
+
             self.write_token()  # else
             self.write_token()  # {
             self.compile_statements()
             self.write_token()  # }
-        self.VMWriter.write_label(f"IF_END{if_labels_count}")
-        self.if_labels_count += 1
+            self.VMWriter.write_label(f"IF_END{if_labels_count}")
+        else:
+            self.VMWriter.write_label(f"IF_FALSE{if_labels_count}")
         self.write_xml_tag("ifStatement", True)
 
     def compile_expression(self) -> None:
