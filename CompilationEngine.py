@@ -88,11 +88,9 @@ class CompilationEngine:
         """Compiles a static declaration or a field declaration."""
         # Your code goes here!
         self._output_stream.write("<classVarDec>\n")
-        kind = self._input_stream.cur_token()
-        if kind == "field":
-            kind = "this"
+        kind = self._input_stream.cur_token().upper()
         self.write_token()  # static or field
-        type = self._input_stream.cur_token()
+        type = self._input_stream.cur_token().upper()
         self.write_token()  # var type
         name = self._input_stream.cur_token()
         self.write_token()  # var name
@@ -165,14 +163,14 @@ class CompilationEngine:
         self.write_xml_tag("parameterList")
         if self._input_stream.cur_token() != ")":
             params += 1
-            type = self._input_stream.cur_token()
+            type = self._input_stream.cur_token().upper()
             self.write_token()  # type
             name = self._input_stream.cur_token()
             self.symbol_table.define(name, type, 'ARG')
             self.write_token()  # name
             while self._input_stream.cur_token() == ',':
                 self.write_token()  # ","
-                type = self._input_stream.cur_token()
+                type = self._input_stream.cur_token().upper()
                 self.write_token()  # type
                 name = self._input_stream.cur_token()
                 self.symbol_table.define(name, type, 'ARG')
@@ -185,7 +183,7 @@ class CompilationEngine:
         # Your code goes here!
         self.write_xml_tag("varDec")
         self.write_token()  # var
-        type = self._input_stream.cur_token()
+        type = self._input_stream.cur_token().upper()
         self.write_token()  # type
 
         names = []
@@ -489,15 +487,17 @@ class CompilationEngine:
             self.write_token()  # '.'
             sub_name = self._input_stream.cur_token()
             self.write_token()  # 'subname'
-            func_name = f'{identifier}.{sub_name}'
-            if self.symbol_table.type_of(identifier):
-                self.VMWriter.write_push("POINTER", 0)
+            if not self.symbol_table.type_of(identifier):
+                func_name = f'{identifier}.{sub_name}'
+            else:
+                kind = self.symbol_table.kind_of(identifier)
+                index = self.symbol_table.index_of(identifier)
+                self.VMWriter.write_push(CONVERT_KIND[kind], index)
                 func_name = f"{self.symbol_table.type_of(identifier)}.{sub_name}"
                 num_args += 1
+
         else:  # method
-            kind = self.symbol_table.kind_of(identifier)
-            index = self.symbol_table.index_of(identifier)
-            self.VMWriter.write_push(CONVERT_KIND[kind], index)
+            self.VMWriter.write_push("POINTER", 0)
             func_name = f"{self._class_name}.{identifier}"
             num_args += 1
         self.write_token()  # '('
